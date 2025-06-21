@@ -2,42 +2,78 @@
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.AI;
 
+[RequireComponent(typeof(NavMeshAgent))]
 public class Player : MonoBehaviour
 {
-    private float moveSpeed = 2f; 
-
-    private Vector3 moveInput = Vector3.zero;
-
-    private Rigidbody _rb;
+    bool isAttacking;
+    private NavMeshAgent _agent;
     private Animator _anim;
-    
-    
-
     void Start()
     {
-        _rb = GetComponent<Rigidbody>();
+        _agent = GetComponent<NavMeshAgent>();
         _anim = GetComponent<Animator>();
+        _agent.updateRotation = false;
+        //Cursor.lockState = CursorLockMode.Locked;
     }
 
     void Update()
     {
-        float h = Input.GetAxisRaw("Horizontal"); // A/D hoặc ← →
-        float v = Input.GetAxisRaw("Vertical");   // W/S hoặc ↑ ↓
-        moveInput = new Vector3(h, 0f, v);
-
-        bool isRuning = moveInput.magnitude > 0.1f;
-        _anim.SetBool(Const.RUN_ANIM, isRuning);
-
-        if (isRuning)
+        if (!isAttacking) 
         {
-            transform.forward = moveInput;
+            Movement();
+        }
+        Combat();
+
+    }
+
+    public void Movement()
+    {
+        if (Input.GetMouseButtonDown(1))
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+            if (Physics.Raycast(ray, out RaycastHit hit))
+            {
+                _agent.SetDestination(hit.point);
+                Debug.Log("di chuyen toi " + hit.point);
+            }
+        }
+
+        if (_agent.hasPath && !_agent.pathPending && _agent.remainingDistance > _agent.stoppingDistance)
+        {
+            Vector3 dir = _agent.desiredVelocity.normalized;
+            dir.y = 0;
+            if (dir != Vector3.zero)
+            {
+                transform.forward = dir;
+            }
+        }
+
+        bool isRunning = _agent.velocity.magnitude > 0.1f;
+        _anim.SetBool(Const.RUN_ANIM, isRunning);
+    }
+
+    public void Combat()
+    {
+        if(Input.GetKeyDown(KeyCode.Q))
+        {
+            isAttacking = true;
+            _anim.SetBool(Const.PUNCH_ANIM,true);
+        }
+
+        if (Input.GetKeyDown(KeyCode.W))
+        {
+            isAttacking = true;
+            _anim.SetBool(Const.KICK_ANIM, true);
         }
     }
 
-    private void FixedUpdate()
+    public void ResetCombatAnim()
     {
-        Vector3 move = moveInput.normalized * moveSpeed ;
-        _rb.MovePosition(_rb.position + move * Time.fixedDeltaTime);
+        isAttacking = false;
+        _anim.SetBool(Const.PUNCH_ANIM, false);
+        _anim.SetBool(Const.KICK_ANIM, false);
     }
 }
